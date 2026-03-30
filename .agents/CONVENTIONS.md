@@ -4,38 +4,39 @@
 
 ---
 
-## 1. Story Project Root（故事实例根目录）
-
-每个小说项目是一个独立的文件夹，位于 workspace 根目录下。命名使用 kebab-case。
+## 1. 两层架构
 
 ```
-xiaoshuo/                     ← workspace 根目录
-├── .agents/                  ← 通用插件层（skill + workflow），不属于任何单一项目
+xiaoshuo/                     ← $ROOT — workspace 根目录（写作平台）
+├── .agents/                  ← 通用插件层（skill + workflow）
+├── scripts/                  ← 平台级脚本（linter、wordcount、compress_timeline）
 ├── 写作指南.md               ← 人类操作手册
-└── tiexue-jiyuan/            ← ★ 具体小说项目根目录（Story Project Root）
+├── GEMINI.md                 ← Agent 行为约束
+├── BACKLOG.md                ← 跨窗口持久化待办清单
+├── 建议.md                   ← 改进建议（可选）
+└── tiexue-jiyuan/            ← $NOVEL — 小说项目根目录
     ├── story.md              ← 故事圣经（基调、规则、避讳词、去AI味规范）
     ├── characters/
     ├── worldbuilding/
     ├── plot/
-    ├── chapters/
-    └── scripts/
+    └── chapters/
 ```
 
+- **$ROOT**（`xiaoshuo/`）：写作平台层。所有小说共享的工具、workflow、脚本、约定。
+- **$NOVEL**（如 `tiexue-jiyuan/`）：单本小说层。story.md、角色、大纲、正文等只属于这本小说。
+- 后续新增小说项目时，在 `$ROOT` 下新建平行目录（如 `novel-2/`），结构同 `tiexue-jiyuan/`。
+
+## 2. Workflow 路径规范
+
+`auto-writer.md` 使用 `$ROOT` 和 `$NOVEL` 变量引用路径：
+- 小说文件：`$NOVEL/story.md`、`$NOVEL/chapters/_index.md`
+- 平台脚本：`$ROOT/scripts/linter.py`、`$ROOT/scripts/wordcount.py`
+- 不在 workflow 里硬编码项目名
+
 **定位规则**：
-- Skill 和 Workflow 内部引用的路径（如 `characters/`、`plot/timeline.md`）**全部相对于 Story Project Root**
-- 当前活跃项目通过 `chapters/_index.md` 的 `story` frontmatter 字段识别
-- 如果 workspace 下存在多个项目文件夹，Agent 必须先确认当前操作的是哪个项目
-
-## 2. Workflow 路径前缀
-
-`auto-writer.md` 等 workflow 中引用的路径使用 **Story Project Root 相对路径**：
-- ✅ `chapters/_index.md`
-- ✅ `plot/master-outline.md`
-- ✅ `scripts/linter.py`
-- ❌ ~~`tiexue-jiyuan/chapters/_index.md`~~（不要在 workflow 里硬编码项目名）
-
-跨项目引用时需带项目名前缀：
-- ✅ `tiexue-jiyuan/story.md`（从 workspace 根目录引用时）
+- Agent 通过查找包含 `chapters/_index.md` 的目录来定位 `$NOVEL`
+- `$ROOT` = `$NOVEL` 的上级目录
+- 如果 workspace 下存在多个项目，Agent 必须先确认当前操作的是哪个
 
 ## 3. 文件命名规则
 
@@ -70,7 +71,4 @@ xiaoshuo/                     ← workspace 根目录
 ## 6. Shell 与命令执行约定
 
 - **Shell 环境**：Windows PowerShell。**禁止使用 `&&` 连接命令**，必须使用 `;` 分隔。
-  - ✅ `python scripts/linter.py chapters/chapter-01.md; python scripts/wordcount.py chapters/chapter-01.md`
-  - ❌ ~~`cmd1 && cmd2`~~
 - **自动执行**：用户已安装自动批准插件，所有 `run_command` 均可设置 `SafeToAutoRun: true`。
-
