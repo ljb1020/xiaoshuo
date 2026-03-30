@@ -5,6 +5,26 @@ import argparse
 from difflib import unified_diff
 
 
+def split_frontmatter(content):
+    """将内容分为 YAML frontmatter 和正文两部分。
+    frontmatter 不参与 lint，原样保留。
+    返回 (frontmatter_str, body_str)。如果没有 frontmatter，返回 ('', content)。
+    """
+    if not content.startswith('---'):
+        return '', content
+    # 找第二个 '---' 的位置
+    second_sep = content.find('---', 3)
+    if second_sep == -1:
+        return '', content
+    # 找到第二个 --- 后面的换行
+    end = content.find('\n', second_sep)
+    if end == -1:
+        end = len(content)
+    else:
+        end += 1  # 包含换行符
+    return content[:end], content[end:]
+
+
 def load_rules():
     """加载规则。审核规避为硬替换，去AI味为扫描报警。"""
     # 审核规避：硬性替换（平台和谐底线，必须自动修正）
@@ -118,13 +138,19 @@ def main():
 
     censorship_rules, ai_warning_patterns = load_rules()
 
+    # 分离 frontmatter，只 lint 正文部分
+    frontmatter, body = split_frontmatter(content)
+
     # === 第一层：审核规避硬替换 ===
-    modified, censor_changes = lint_replace(content, censorship_rules)
+    modified_body, censor_changes = lint_replace(body, censorship_rules)
 
     # === 第二层：去AI味软报警（不替换） ===
     ai_warnings = []
     if not args.censorship_only:
-        ai_warnings = lint_warn(modified, ai_warning_patterns)
+        ai_warnings = lint_warn(modified_body, ai_warning_patterns)
+
+    # 重新组装完整内容
+    modified = frontmatter + modified_body
 
     # 输出结果
     has_issues = bool(censor_changes) or bool(ai_warnings)

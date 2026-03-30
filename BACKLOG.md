@@ -8,7 +8,6 @@
 
 | # | 待办 | 涉及文件 | 来源 |
 |---|------|----------|------|
-| B-001 | Linter 正则加固：加词边界防误伤、排除 YAML frontmatter 和引用区、补测试样例 | `scripts/linter.py` | 建议.md Round 2 |
 | B-002 | Linter 审核规避词表从硬编码改为外部配置文件，支持不同小说项目各自定义避讳词 | `scripts/linter.py` | 多小说架构需求 |
 
 ## 🟡 中优先级（后续迭代处理）
@@ -36,3 +35,6 @@
 | — | linter 拆分为硬替换 + 软报警 | 2026-03-30 |
 | — | 废弃启动提示词.txt、合并入 story.md | 2026-03-30 |
 | — | 删除 git 自动提交、修复 compress_timeline.py | 2026-03-30 |
+| B-001 | Linter 跳过 YAML frontmatter + 补 test_linter.py（17 项测试全通过） | 2026-03-30 |
+| — | auto-writer 补软报警阈值（≥5 条标记需人工复审）+ 改句自检 | 2026-03-30 |
+| — | 确认 wordcount.py 存在，Step 4.5 流程可执行 | 2026-03-30 |
