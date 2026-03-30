@@ -1,0 +1,12 @@
+{
+  "active_novel": "tiexue-jiyuan",
+  "novels": [
+    {
+      "id": "tiexue-jiyuan",
+      "title": "铁血纪元",
+      "genre": "军事架空",
+      "root_path": "tiexue-jiyuan",
+      "status": "active"
+    }
+  ]
+}

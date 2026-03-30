@@ -2,6 +2,7 @@ import sys
 import re
 import os
 import argparse
+import json
 from difflib import unified_diff
 
 
@@ -25,38 +26,61 @@ def split_frontmatter(content):
     return content[:end], content[end:]
 
 
-def load_rules():
-    """加载规则。审核规避为硬替换，去AI味为扫描报警。"""
-    # 审核规避：硬性替换（平台和谐底线，必须自动修正）
-    censorship_rules = {
-        r"(?<!龙)中国(?!.*龙国)": "龙国",
-        r"(?<![樱花])日本": "樱花国",
-        r"(?<![鹰])美国": "鹰酱",
-        r"(?<![鹰酱])美军": "鹰酱军",
-        r"苏联": "毛熊",
-        r"俄罗斯": "毛熊",
-        r"(?<![约翰牛])英国": "约翰牛",
-        r"(?<![高卢鸡])法国": "高卢鸡",
-        r"(?<![汉斯猫])德国": "汉斯猫",
-        r"055(?:大驱|级|舰|驱逐舰)": "0VV大驱",
-        r"(?:歼20|歼-20|J-?20)": "J-VV隐身战机",
-        r"075(?:两栖舰|级|舰)": "0QV两栖舰",
-        r"99A(?:主战坦克|坦克|式)": "9VA坦克",
-    }
+def load_rules(config_path):
+    """从配置 JSON 文件加载规则。"""
+    if not os.path.exists(config_path):
+        print(f"❌ Error: Config file not found at {config_path}")
+        sys.exit(1)
+        
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+            return config.get('censorship_rules', {}), config.get('ai_warning_patterns', {}), config.get('ignore', {})
+    except Exception as e:
+        print(f"❌ Error parsing {config_path}: {e}")
+        sys.exit(1)
 
-    # 去AI味：仅扫描报警，不自动替换（由 agent 二次改句）
-    ai_warning_patterns = {
-        r"总而言之": "机械过渡词，建议改写",
-        r"综上所述": "机械过渡词，建议改写",
-        r"不仅如此": "机械过渡词，建议改写",
-        r"然而不可思议的是": "典型AI句式，建议简化",
-        r"倒吸一?口凉气": "机械反应词，建议用具体动作替代",
-        r"嘴角勾起一抹(?:冷笑|弧度)": "机械表情词，建议用具体动作替代",
-        r"深邃的眼眸": "机械外貌词，建议用具体描写替代",
-        r"宛如一幅画卷": "过度修辞，建议删除或改写",
-    }
 
-    return censorship_rules, ai_warning_patterns
+def mask_ignored_blocks(content, ignore_config):
+    """将需要忽略的区块（代码块、引用块）替换为占位符，以防被误伤。返回 (掩码后的内容, 掩码字典)。"""
+    masked_content = content
+    masks = {}
+    counter = 0
+    
+    # 1. 代码块
+    if ignore_config.get('skip_code_fence', True):
+        code_pattern = r"(?s)```.*?```"
+        for m in re.finditer(code_pattern, masked_content):
+            placeholder = f"__LINTER_MASK_CODE_{counter}__"
+            masks[placeholder] = m.group()
+            counter += 1
+            
+        for placeholder, original in masks.items():
+            if placeholder.startswith("__LINTER_MASK_CODE_"):
+                masked_content = masked_content.replace(original, placeholder, 1)
+
+    # 2. 引用块
+    if ignore_config.get('skip_blockquote', True):
+        # 匹配以 > 开头的行（可能连续多行）
+        quote_pattern = r"(?m)^(?:>[^\n]*(?:\n|$))+"
+        for m in re.finditer(quote_pattern, masked_content):
+            placeholder = f"__LINTER_MASK_QUOTE_{counter}__"
+            masks[placeholder] = m.group()
+            counter += 1
+            
+        for placeholder, original in masks.items():
+            if placeholder.startswith("__LINTER_MASK_QUOTE_"):
+                masked_content = masked_content.replace(original, placeholder, 1)
+                
+    return masked_content, masks
+
+
+def restore_ignored_blocks(content, masks):
+    """将占位符还原为原始内容。"""
+    restored = content
+    for placeholder, original in masks.items():
+        restored = restored.replace(placeholder, original)
+    return restored
 
 
 def lint_replace(content, rules_dict):
@@ -116,6 +140,7 @@ def show_diff(original, modified, filepath):
 def main():
     parser = argparse.ArgumentParser(description='铁血纪元审核 Linter — 硬替换 + 软报警')
     parser.add_argument('filepath', help='要检查的 markdown 文件路径')
+    parser.add_argument('--config', help='JSON 配置文件路径', default=None)
     parser.add_argument('--dry-run', action='store_true',
                         help='仅输出 diff，不修改文件')
     parser.add_argument('--verbose', action='store_true',
@@ -129,6 +154,10 @@ def main():
         print(f"❌ Error: {filepath} does not exist.")
         sys.exit(1)
 
+    # 推导 config 路径
+    novel_dir = os.path.dirname(os.path.dirname(os.path.abspath(filepath)))
+    config_path = args.config or os.path.join(novel_dir, 'config', 'linter.json')
+
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -136,20 +165,27 @@ def main():
         print(f"❌ Error reading {filepath}: {e}")
         sys.exit(1)
 
-    censorship_rules, ai_warning_patterns = load_rules()
+    censorship_rules, ai_warning_patterns, ignore_config = load_rules(config_path)
 
-    # 分离 frontmatter，只 lint 正文部分
-    frontmatter, body = split_frontmatter(content)
+    # 分离 frontmatter
+    if ignore_config.get('skip_frontmatter', True):
+        frontmatter, body = split_frontmatter(content)
+    else:
+        frontmatter, body = '', content
+
+    # 屏蔽需忽略的区块
+    masked_body, masks = mask_ignored_blocks(body, ignore_config)
 
     # === 第一层：审核规避硬替换 ===
-    modified_body, censor_changes = lint_replace(body, censorship_rules)
+    modified_masked_body, censor_changes = lint_replace(masked_body, censorship_rules)
 
     # === 第二层：去AI味软报警（不替换） ===
     ai_warnings = []
     if not args.censorship_only:
-        ai_warnings = lint_warn(modified_body, ai_warning_patterns)
+        ai_warnings = lint_warn(modified_masked_body, ai_warning_patterns)
 
-    # 重新组装完整内容
+    # 重新组装还原
+    modified_body = restore_ignored_blocks(modified_masked_body, masks)
     modified = frontmatter + modified_body
 
     # 输出结果

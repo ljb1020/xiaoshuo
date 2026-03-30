@@ -8,9 +8,9 @@ description: 自动续写最新章节流水线（单章物理隔离模式）
 > **路径约定**：本 workflow 中所有以 `$NOVEL/` 开头的路径表示**当前小说项目根目录**（如 `tiexue-jiyuan/`）；所有以 `$ROOT/` 开头的路径表示 **workspace 根目录**（如 `xiaoshuo/`）。脚本位于 `$ROOT/scripts/`，小说文件位于 `$NOVEL/` 内部。
 
 0. **第零步：定位小说根目录 (Locate Novel Root)**
-   - 检查用户当前打开的文件或最近活跃的 workspace，识别当前小说项目根目录（`$NOVEL`）。
-   - 确认方式：找到包含 `chapters/_index.md` 的目录，读取其 `story` frontmatter 字段。
-   - 确认 workspace 根目录（`$ROOT`）：`$NOVEL` 的上级目录。
+   - 读取 workspace 根目录（`$ROOT`）下的 `workspace.json` 注册表文件。
+   - 找到 `active_novel` 字段，并在 `novels` 列表中匹配对应的 `root_path`。
+   - 将确定的路径设为当前小说项目根目录（`$NOVEL`）。严禁靠猜测目录结构来定位。
 
 1. **第一步：进度嗅探与定位 (Progress Sniffing)**
    - 读取并解析 `$NOVEL/chapters/_index.md`，找到目前系统中已完成存储的最大章节号。
@@ -66,7 +66,20 @@ description: 自动续写最新章节流水线（单章物理隔离模式）
 4.5 **API 截断与防呆鉴权校验 (Failsafe Check)【绝对红线】**
    - 强制执行 `python $ROOT/scripts/wordcount.py $NOVEL/chapters/chapter-{NN}.md` 进行字数校验。
    - 检查正文总字数是否达到 **2000字以上**，且段落结尾是否为完整的句号/感叹号结构。
-   - **如果字数不足或截断：** 立即终止！严禁执行第五步！清理残骸并报错。
+   - **如果字数不足或截断：** 立即终止！严禁执行后面步骤！清理残骸并报错。
+
+**4.8 章节验收 (Story-Level Acceptance Check)**
+   - Agent 必须对刚写完的章节进行宏观维度的自查，并**强制以如下固定模板输出结论**：
+     ```markdown
+     **验收结论**: [PASS | SOFT_FAIL | HARD_FAIL | NEEDS_REOUTLINE]
+     - 🎯 任务目标推进: [是/否] （简要说明本章是否完成了任务卡的一句话目标）
+     - ⏳ Timeline 冲突: [无/有] （检查是否与 timeline.md 中的既有事实冲突）
+     - 🎭 角色状态冲突: [无/有] （检查角色行为是否违反了 characters/ 下设定的动态状态或禁忌）
+     - 🔀 唯一性表达: [有/无] （是否写出了只属于本章特定角色的不可互换表达）
+     - 🔄 张力手法查重: [合规/重复] （是否重复了前几章用过的悬念/冲突手法）
+     ```
+   - 如果结论是 `PASS` 或 `SOFT_FAIL`（例如仅少许瑕疵需要人类人工审），则继续进行第五步。
+   - 如果结论是 `HARD_FAIL` 或 `NEEDS_REOUTLINE`，**立即终止，不准执行第五步**，向用户报告具体失败原因。
 
 5. **第五步：记忆固化落地与大修剪 (Commit Memory & Compress)**
    - 将本章核心事件追加至 `$NOVEL/plot/timeline.md`。
