@@ -12,16 +12,19 @@ description: 自动续写最新章节流水线（单章物理隔离模式）
    - 同时读取对应的卷 arc 文件（`plot/arcs/arc-{卷号}-*.md`）获取更细的章节纲要。
 
 2. **第二步：构筑无菌防崩坏环境 (Context Sandbox)**
-   - 强制读取 workspace 根目录下的 `启动提示词.txt` 中已定格的网文天规。（注：此文件位于 story project 的上级目录）
-   - 读取 `story.md` 获取全局避讳词与情感基调。
-   - 读取 `worldbuilding/systems/dragon-fleet.md` 等相关战力规则。
-   - 读取 `worldbuilding/systems/ija-order-of-battle.md` 确认敌方当前兵力状态。
-   - 读取 `worldbuilding/systems/china-1937-economy.md` 确认工业/经济约束（如涉及种田段落）。
+
+   **必读文件（每章强制加载）：**
+   - 读取 `story.md` 获取全局避讳词、情感基调、台词杀气规则与去AI味写作规范。
    - 读取 `plot/timeline.md` 获取到 `N-1` 章节为止的小说实时时间线记忆。
-   - 读取 `.agents/CONVENTIONS.md` 确认路径约定（如首次执行）。
-   - 查询 `plot/foreshadowing.md`（如有）或大纲库，检查本章是否需要回收伏笔。
+   - 查询 `plot/foreshadowing.md`，检查本章是否需要回收伏笔。
    - 从 `characters/` 目录调取第 `N` 章对应必须出场的核心人物卡片（务必包含 Voice Bank 专属语料库、**短句杀器**和 Dynamic Status 动态状态栏）。
-   - **章节分型判定**：根据 arc 大纲中本章的定位，明确本章是「爆发章」还是「蓄力章」，并提取本章的**核心冲突点**和**章末钩子方向**。
+
+   **条件读取（按章节类型加载）：**
+   - 战斗章 → 读取 `worldbuilding/systems/dragon-fleet.md`（战力规则）+ `worldbuilding/systems/ija-order-of-battle.md`（敌方兵力）
+   - 种田章 → 读取 `worldbuilding/systems/china-1937-economy.md`（工业/经济约束）
+   - 涉及地点描写 → 读取对应 `worldbuilding/locations/*.md`
+
+   **章节分型判定**：根据 arc 大纲中本章的定位，明确本章是「爆发章」还是「蓄力章」，并提取本章的**核心冲突点**和**章末钩子方向**。
 
 3. **第三步：生成第N章・四拍分镜细纲 (Beat-by-Beat Outline)**
    - 基于第二步的章节分型结果，用对应的四拍模板写细纲：
@@ -30,19 +33,17 @@ description: 自动续写最新章节流水线（单章物理隔离模式）
    - 细纲中必须标注：本章的「核心冲突点」、「是否有名场面（需要五感降速）」、「章末钩子」。
    - （等待用户确认，或直接进入第四步）
 
-4. **第四步：分块拼装与审查生成 (Chunking & Linter)**
-   - 严禁一次性输出全文。**必须分三次生成**：
-     * **Chunk 1**：生成第一拍（约800字）。
-     * **Chunk 2**：生成第二/三拍（约800字）。
-     * **Chunk 3**：生成第四拍（约800字）。
-   - 将三次内容拼接为完整的 2000-2500 字正文，通过 UTF-8 编码保存至 `chapters/chapter-{N}.md`。**正文中不得包含任何分块标记、内部结构标记（如【起】【承/转】【合】等）**。
-   - **执行硬性代码 Linter**：强制静默执行系统命令行 `python scripts/linter.py chapters/chapter-{N}.md`。
+4. **第四步：正文生成与审查 (Writing & Linter)**
+   - 按四拍结构分段构思，内部保持"先第一拍、再二三拍、最后第四拍"的递进节奏，一次性保存完整正文到 `chapters/chapter-{NN}.md`（两位数补零）。
+   - 正文目标 **2000-2500 字**。**正文中不得包含任何分块标记、内部结构标记（如【起】【承/转】【合】等）**。
+   - **执行硬性代码 Linter**：强制静默执行系统命令行 `python scripts/linter.py chapters/chapter-{NN}.md`。
    - **进入反 AI 质检节点**：检查是否贯彻了长短句结合？如本章有标注为名场面的段落，是否在该段落使用了五感降速描写？
 
 4.5 **API 截断与防呆鉴权校验 (Failsafe Check)【绝对红线】**
+   - 强制执行 `python scripts/wordcount.py chapters/chapter-{NN}.md` 进行字数校验。
    - 检查已合并存盘的本章正文总字数是否达到 **2000字以上**，且段落结尾是否为完整的句号/感叹号结构。
    - **如果因 API 额度耗尽、网络截断，导致章节写了一半、或字数严重不足：** 立即强行终止目前的所有运行流！
-   - **绝对严禁执行第五步！** 严禁向 `timeline.md` 写入残缺历史！清理掉损坏的 `chapter-{N}.md` 残骸，并向系统抛出严重警告："❌ 严重错误：API 生成中断或字数不足，防呆机制已触发。请充值或排除网络故障后，重新运行 /auto-writer。"
+   - **绝对严禁执行第五步！** 严禁向 `timeline.md` 写入残缺历史！清理掉损坏的 `chapter-{NN}.md` 残骸，并向系统抛出严重警告："❌ 严重错误：API 生成中断或字数不足，防呆机制已触发。请充值或排除网络故障后，重新运行 /auto-writer。"
 
 5. **第五步：记忆固化落地与大修剪 (Commit Memory & Compress)**
    - 将本章刚刚发生的核心事件（时间、人物动作、结果）作为一行历史，追加至 `plot/timeline.md`。
@@ -50,5 +51,4 @@ description: 自动续写最新章节流水线（单章物理隔离模式）
    - 更新 `chapters/_index.md`，将第 `N` 章挂载至总目录，并粗略更新总字数。
    - **更新角色动态状态**：检查本章出场角色的 `Dynamic Status（动态状态栏）`，更新身体状态、情绪基调、当前位置、持有情报等字段，并记录出场章节。
    - **更新敌方战损**（如有战斗）：在 `worldbuilding/systems/ija-order-of-battle.md` 中标注被歼灭或损伤的部队单位。
-   - **Git 版本控制**：强制执行系统命令行 `git add -A; git commit -m "📖 第N章入库"`，为每章建立独立的版本快照，确保可回滚。
-   - 此时，本单章任务完全闭环。向用户报告："✅ 第 {N} 章已完成合规入库并 git commit。请开启新对话窗口，输入 /auto-writer 开始第 {N+1} 章。"
+   - 此时，本单章任务完全闭环。向用户报告："✅ 第 {N} 章已完成合规入库。请开启新对话窗口，输入 /auto-writer 开始第 {N+1} 章。"

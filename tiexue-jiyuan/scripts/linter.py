@@ -27,7 +27,7 @@ def load_rules():
         r"99A(?:主战坦克|坦克|式)": "9VA坦克",
     }
 
-    # 去AI味：替换为更自然的表达（不删除，而是替换）
+    # 去AI味：替换为更自然的表达
     anti_ai_rules = {
         r"总而言之": "——",
         r"综上所述": "由此可见",
@@ -42,27 +42,6 @@ def load_rules():
     return censorship_rules, anti_ai_rules
 
 
-def strip_structural_markers(content):
-    """【硬规则】删除所有工作流内部分块标记（如 ## 【起】、## 【承/转】、## 【合/高潮】等）。
-    这些标记是 auto-writer 流水线的分镜骨架，绝不允许残留在最终正文中。"""
-    # 匹配 ##(可选空格)【任意中文/标点】 占据独立行（含前后空行）
-    pattern = r'\n*^#{1,6}\s*【[^】]*】\s*$\n*'
-    matches = list(re.finditer(pattern, content, re.MULTILINE))
-    changes = []
-    for m in matches:
-        line_num = content[:m.start()].count('\n') + 1
-        changes.append({
-            'line': line_num,
-            'original': m.group().strip(),
-            'replacement': '(已删除)',
-            'context': f'内部分块标记残留: {m.group().strip()}'
-        })
-    cleaned = re.sub(pattern, '\n\n', content, flags=re.MULTILINE)
-    # 清理可能产生的连续空行（超过2个换行合并为2个）
-    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
-    return cleaned, changes
-
-
 def lint_content(content, rules_dict):
     """对内容执行替换，返回 (新内容, 替换记录列表)。"""
     modified = content
@@ -72,7 +51,6 @@ def lint_content(content, rules_dict):
         matches = list(re.finditer(pattern, modified))
         if matches:
             for m in reversed(matches):
-                # 记录行号
                 line_num = modified[:m.start()].count('\n') + 1
                 line_content = modified.splitlines()[line_num - 1] if line_num <= len(modified.splitlines()) else ""
                 changes.append({
@@ -126,18 +104,15 @@ def main():
 
     censorship_rules, anti_ai_rules = load_rules()
 
-    # 第零步：强制清除工作流内部分块标记（【起】【承/转】【合/高潮】等）
-    modified, structural_changes = strip_structural_markers(content)
-
     # 执行审核规避替换
-    modified, censor_changes = lint_content(modified, censorship_rules)
+    modified, censor_changes = lint_content(content, censorship_rules)
 
     # 执行去AI味替换（除非指定了 --censorship-only）
     ai_changes = []
     if not args.censorship_only:
         modified, ai_changes = lint_content(modified, anti_ai_rules)
 
-    all_changes = structural_changes + censor_changes + ai_changes
+    all_changes = censor_changes + ai_changes
 
     if not all_changes:
         print(f"✅ Linter 通过: {os.path.basename(filepath)} 无违禁词。")
