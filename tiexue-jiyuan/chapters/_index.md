@@ -9,6 +9,6 @@ story: tiexue-jiyuan
 
 | # | Title | POV | Status | Word Count | File |
 |---|-------|-----|--------|------------|------|
-| 1 | 地磁异常与末日警报 | 陈渊 | ✅ 完成 | 2461 | [chapter-01.md](file:///d:/LJB/dev/ClaudeCode/xiaoshuo/tiexue-jiyuan/chapters/chapter-01.md) |
+| 1 | 地磁异常与末日警报 | 陈渊 | ✅ Done | 2111 | [chapter-1.md](file:///d:/LJB/dev/ClaudeCode/xiaoshuo/tiexue-jiyuan/chapters/chapter-1.md) |
 
-## Total Word Count: 2461
+## Total Word Count: 2111
