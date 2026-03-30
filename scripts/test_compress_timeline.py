@@ -28,7 +28,7 @@ story: test
             
         # 验证是否生成了三个分层
         assert "## 📌 核心设定与重大节点 (Canonical)" in new_content
-        assert "## 🗄️ 已闭环事件 (Resolved)" in new_content
+        assert "## 🗄️ 已闭环 / 已归档事件 (Resolved & Archived)" in new_content
         assert "## 🕒 近期上下文 (Recent)" in new_content
         
         # 验证旧事件进入了 Recent，且自动被赋予了 action 类型
@@ -74,8 +74,8 @@ type: timeline
         with open(path, 'r', encoding='utf-8') as f:
             new_content = f.read()
             
-        canonical_section = new_content.split("## 🗄️ 已闭环事件")[0]
-        resolved_section = new_content.split("## 🕒 近期上下文")[0].split("## 🗄️ 已闭环事件")[1]
+        canonical_section = new_content.split("## 🗄️ 已闭环 / 已归档事件")[0]
+        resolved_section = new_content.split("## 🕒 近期上下文")[0].split("## 🗄️ 已闭环 / 已归档事件")[1]
         recent_section = new_content.split("## 🕒 近期上下文")[1]
         
         # 1. 晋升测试：fact 和 major_change 被提拔到了 Canonical

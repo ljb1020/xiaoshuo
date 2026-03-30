@@ -138,7 +138,7 @@ def show_diff(original, modified, filepath):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='铁血纪元审核 Linter — 硬替换 + 软报警')
+    parser = argparse.ArgumentParser(description='降临1937：现代舰队横跨东海审核 Linter — 硬替换 + 软报警')
     parser.add_argument('filepath', help='要检查的 markdown 文件路径')
     parser.add_argument('--config', help='JSON 配置文件路径', default=None)
     parser.add_argument('--dry-run', action='store_true',

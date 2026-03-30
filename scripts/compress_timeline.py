@@ -28,7 +28,7 @@ def parse_timeline(content):
         if "核心设定与重大节点" in line or "Canonical" in line:
             current_pool = canonical
             continue
-        if "已闭环事件" in line or "Resolved" in line:
+        if "已闭环" in line or "Resolved" in line:
             current_pool = resolved
             continue
         if "近期上下文" in line or "Recent" in line:
@@ -114,7 +114,7 @@ def compress_timeline(timeline_path, threshold=20):
                 f.write(f"{r}\n")
             f.write("\n")
                 
-            f.write("## 🗄️ 已闭环事件 (Resolved)\n")
+            f.write("## 🗄️ 已闭环 / 已归档事件 (Resolved & Archived)\n")
             f.write("| When | Event | Type | Arc | Chapter |\n")
             f.write("|------|-------|------|-----|---------|\n")
             for r in resolved:
