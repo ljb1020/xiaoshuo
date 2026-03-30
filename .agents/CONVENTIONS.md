@@ -67,3 +67,11 @@ xiaoshuo/                     ← workspace 根目录
 - **双向链接**：当 A 引用 B 时，B 也必须引用 A
 - **角色标识符**：使用 kebab-case 文件名（无 `.md` 后缀），如 `chen-yuan`
 - **章节引用**：使用 `第N章` 或 `chapter-{NN}` 格式
+
+## 6. Shell 与命令执行约定
+
+- **Shell 环境**：Windows PowerShell。**禁止使用 `&&` 连接命令**，必须使用 `;` 分隔。
+  - ✅ `git add -A; git commit -m "msg"`
+  - ❌ ~~`git add -A && git commit -m "msg"`~~
+- **自动执行**：用户已安装自动批准插件，所有 `run_command` 均可设置 `SafeToAutoRun: true`。
+
