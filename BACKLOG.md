@@ -40,3 +40,4 @@
 | B-006 | 增加 workspace 级小说注册表 `workspace.json` 及 workflow 联动 | 2026-03-30 |
 | B-008 | auto-writer 增加强制固定模板的章节验收器 (Story-Level Acceptance) | 2026-03-30 |
 | B-009 | timeline 引入 in-file 分类打标，改为分层整理器而非简单物理切分 | 2026-03-30 |
+| — | 约束 timeline 记录仅允许使用 6 个枚举 Type (fact/action/foreshadow/conflict/resolved/major_change)，实现“分类器”到“判断器”的跨越 | 2026-03-30 |

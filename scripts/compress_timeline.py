@@ -37,6 +37,11 @@ def parse_timeline(content):
             
         stripped = line.strip()
         if stripped.startswith("|") and not stripped.startswith("| When") and not stripped.startswith("|---"):
+            # Old 4-column format check vs new 5-column format
+            parts = [p.strip() for p in stripped.split('|') if p.strip()]
+            if len(parts) == 4:
+                # 兼容升级：如果只有 4 列 (When, Event, Arc, Chapter)，强制插入 Type 列 (默认为 action)
+                stripped = f"| {parts[0]} | {parts[1]} | action | {parts[2]} | {parts[3]} |"
             current_pool.append(stripped)
             
     return frontmatter, canonical, resolved, recent
@@ -51,17 +56,48 @@ def compress_timeline(timeline_path, threshold=20):
 
     frontmatter, canonical, resolved, recent = parse_timeline(content)
 
+    # 第一步：基于词表的语义分发 (Semantic Routing)
+    new_recent = []
+    for r in recent:
+        parts = [p.strip() for p in r.split('|') if p.strip()]
+        if len(parts) >= 5:
+            r_type = parts[2].lower()
+            if r_type in ['fact', 'major_change']:
+                canonical.append(r)
+                changed = True
+                continue
+            elif r_type == 'resolved':
+                resolved.append(r)
+                changed = True
+                continue
+        # 不是晋升或已闭环的，继续留在 new_recent
+        new_recent.append(r)
+        
+    recent = new_recent
+
+    # 第二步：基于剩余 Recent 的过期淘汰 (Action Eviction)
     if len(recent) > threshold:
-        # Move excess from recent to resolved
+        # 只允许淘汰 action
+        # 保护 rules: foreshadow, conflict 绝对不动
+        evictable_candidates = []
+        for i, r in enumerate(recent):
+            parts = [p.strip() for p in r.split('|') if p.strip()]
+            if len(parts) >= 5:
+                r_type = parts[2].lower()
+                if r_type == 'action':
+                    evictable_candidates.append(i)
+        
         excess = len(recent) - threshold
-        resolved.extend(recent[:excess])
-        recent = recent[excess:]
-        changed = True
-    else:
-        changed = False
+        if excess > 0 and evictable_candidates:
+            # 优先从最老的（头部）action开始淘汰，最多淘汰 excess 条
+            to_evict = evictable_candidates[:excess]
+            for idx in reversed(to_evict):
+                resolved.append(recent[idx]) # 将老旧 action 归入已闭环归档区
+                del recent[idx]
+            changed = True
 
     # Force format upgrade even if no compression occurred, if the sections are missing
-    if "## 📌 核心设定与重大节点" not in content:
+    if "## 📌 核心设定与重大节点" not in content or "Type" not in content:
         changed = True
 
     if changed:
@@ -69,25 +105,25 @@ def compress_timeline(timeline_path, threshold=20):
             if frontmatter:
                 f.write(frontmatter)
             f.write("\n# Timeline Memory (分层记忆池)\n")
-            f.write("\n> 该文件由脚本自动维护。Agent 追加时请放在底部的 `近期上下文` 表格中。\n\n")
+            f.write("\n> 该文件由脚本自动维护。Agent 追加时请放在底部的 `近期上下文` 表格中。\n> 允许的 Type 必须从以下 6 个枚举中选择：`fact, action, foreshadow, conflict, resolved, major_change`。\n\n")
             
             f.write("## 📌 核心设定与重大节点 (Canonical)\n")
-            f.write("| When | Event | Arc | Chapter |\n")
-            f.write("|------|-------|-----|---------|\n")
+            f.write("| When | Event | Type | Arc | Chapter |\n")
+            f.write("|------|-------|------|-----|---------|\n")
             for r in canonical:
                 f.write(f"{r}\n")
             f.write("\n")
                 
             f.write("## 🗄️ 已闭环事件 (Resolved)\n")
-            f.write("| When | Event | Arc | Chapter |\n")
-            f.write("|------|-------|-----|---------|\n")
+            f.write("| When | Event | Type | Arc | Chapter |\n")
+            f.write("|------|-------|------|-----|---------|\n")
             for r in resolved:
                 f.write(f"{r}\n")
             f.write("\n")
                 
             f.write("## 🕒 近期上下文 (Recent)\n")
-            f.write("| When | Event | Arc | Chapter |\n")
-            f.write("|------|-------|-----|---------|\n")
+            f.write("| When | Event | Type | Arc | Chapter |\n")
+            f.write("|------|-------|------|-----|---------|\n")
             for r in recent:
                 f.write(f"{r}\n")
                 

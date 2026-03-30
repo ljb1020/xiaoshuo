@@ -77,13 +77,16 @@ description: 自动续写最新章节流水线（单章物理隔离模式）
      - 🎭 角色状态冲突: [无/有] （检查角色行为是否违反了 characters/ 下设定的动态状态或禁忌）
      - 🔀 唯一性表达: [有/无] （是否写出了只属于本章特定角色的不可互换表达）
      - 🔄 张力手法查重: [合规/重复] （是否重复了前几章用过的悬念/冲突手法）
+     - 🔗 闭环候选分析: [无/有] （如有旧伏笔被填，列出是哪条纪年记录、为什么闭合了。先做候选与理由记录，切勿静默修改旧表）
      ```
    - 如果结论是 `PASS` 或 `SOFT_FAIL`（例如仅少许瑕疵需要人类人工审），则继续进行第五步。
    - 如果结论是 `HARD_FAIL` 或 `NEEDS_REOUTLINE`，**立即终止，不准执行第五步**，向用户报告具体失败原因。
 
 5. **第五步：记忆固化落地与大修剪 (Commit Memory & Compress)**
-   - 将本章核心事件追加至 `$NOVEL/plot/timeline.md`。
-   - **执行记忆防膨胀压缩**：`python $ROOT/scripts/compress_timeline.py $NOVEL/plot/timeline.md`。
+   - 将本章核心事件追加至 `$NOVEL/plot/timeline.md` 底部的 `近期上下文` 表格中。
+     * **强制约束**：`Type` 列**仅允许使用**以下 6 个枚举值：`fact`, `action`, `foreshadow`, `conflict`, `resolved`, `major_change`。不确定时优先保守采用 `action` 或 `conflict`。
+   - **闭环状态反写**：查阅 Step 4.8 中的【闭环候选分析】。如果存在真正合理兑现的旧坑，在此步骤进入 `timeline.md` 找到那条旧记录，将其 `Type` 改为 `resolved`。
+   - **执行记忆分理与过滤**：强制静默执行 `python $ROOT/scripts/compress_timeline.py $NOVEL/plot/timeline.md`。（脚本会自动完成超量 action 的清理与 fact 晋升，无需人工干预）
    - 更新 `$NOVEL/chapters/_index.md`。
    - **更新角色动态状态**：更新出场角色的 Dynamic Status。
    - **更新敌方战损**（如有战斗）：在 `$NOVEL/worldbuilding/systems/ija-order-of-battle.md` 中标注。
